@@ -1,18 +1,37 @@
 import pygame
 import pygame.freetype
+import random
 
 # color sets
-yellow = (255, 255, 0)
-white = (255, 255, 255)
+SCREEN = (0, 0, 20)
+CARD = (0, 128, 0)
+WHITE = (255, 255, 255)
+YELLOW = (255, 255, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+CYAN = (0, 255, 255)
+BLUE = (0, 0, 255)
+MAGENTA = (255, 0, 255)
+I_COLORS = (YELLOW, GREEN, RED, CYAN, BLUE, MAGENTA)
 
+# shapes
+SQUARE = 'square'
+TRIANGLE = 'triangle'
+CIRCLE = 'circle'
+I_SHAPES = (SQUARE, TRIANGLE, CIRCLE)
+
+# general dimensions
+WINDOW = (1280,720)
+CARD_GAP = 10
+
+# pygame settings
 pygame.init()
-res = (1280, 720)
+res = WINDOW
 screen = pygame.display.set_mode(res)
-
 image = pygame.image.load("shuffle.png")
 my_font = pygame.freetype.Font("NotoSans-Regular.ttf", 24)
 
-# front page, menu with game options
+# front page menu
 def menu():
 
     while (True):
@@ -24,7 +43,7 @@ def menu():
                 exit()
         
         # background
-        screen.fill((0,0,20))
+        screen.fill(SCREEN)
         # header
         screen.blit(image, (240,20))
         # buttons
@@ -37,34 +56,68 @@ def menu():
        
         pygame.display.flip()
 
-# gets button message, position, area, and action
+# button function, gets message, position, area, and action
 def button(text, x, y, width, height, action = None):
     mouse = pygame.mouse.get_pos() 
     click = pygame.mouse.get_pressed() 
+    levelSize = ""
 
 
     # when hovered
     if x < mouse[0] < x + width and y < mouse[1] < y + height:
-        pygame.draw.rect(screen, white, (x, y, width, height), 2)
-        my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, white)
+        pygame.draw.rect(screen, WHITE, (x, y, width, height), 2)
+        my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, WHITE)
 
         # if clicked
         if click[0] == 1 and action != None:
             if action == "quit":
                 pygame.quit()
                 exit()
-            if action == "back":
+            elif action == "back":
                 menu()
-            if action == "4x3":
-                level_4x3()
+            elif action == "4x3":
+                levelSize = "4x3"
+                game_loop(levelSize)
+            elif action == "4x4":
+                levelSize = "4x4"
+                game_loop(levelSize)
+            elif action == "5x4":
+                levelSize = "5x4"
+                game_loop(levelSize)
+            elif action == "6x5":
+                levelSize = "6x5"
+                game_loop(levelSize)
+            elif action == "6x6":
+                levelSize = "6x6"
+                game_loop(levelSize)
                    
     # not hovered
     else:
-        pygame.draw.rect(screen, yellow, (x, y, width, height), 2)
-        my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, yellow)
+        pygame.draw.rect(screen, YELLOW, (x, y, width, height), 2)
+        my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, YELLOW)
 
-# first level
-def level_4x3():
+# Levels
+def game_loop(levelSize):
+
+    # playing board dimensions
+    if (levelSize == '4x3'):
+        BOARD_X = 4 # width
+        BOARD_Y = 3 # height
+    elif (levelSize == '4x4'):
+        BOARD_X = 4 
+        BOARD_Y = 4 
+    elif (levelSize == '5x4'):
+        BOARD_X = 5 
+        BOARD_Y = 4
+    elif (levelSize == '6x5'):
+        BOARD_X = 6 
+        BOARD_Y = 5
+    elif (levelSize == '6x6'):
+        BOARD_X = 6 
+        BOARD_Y = 6
+
+    # generating board
+    board = createBoard(BOARD_X, BOARD_Y)
 
     while (True):
 
@@ -74,13 +127,39 @@ def level_4x3():
                 pygame.quit()
                 exit()
         
-        screen.fill((0,0,20))
-
+        screen.fill(SCREEN)
         button("Exit", 10, 680, 100, 30, "back")
-
         pygame.display.flip()
 
-# starts running here    
+# creates all the playing cards in the game
+def createBoard(width, height):
+    
+    # all possible combos with the colors and shapes assigned
+    combos = []
+    for color in I_COLORS:
+        for shape in I_SHAPES:
+            combos.append( (shape, color) ) 
+    
+    # shuffles all combinations and selects only the ones needed according
+    # to the size of the level (board dimensions) 
+    random.shuffle(combos)
+    combosNeeded = int(width * height / 2)
+    combos = combos[:combosNeeded] * 2
+    random.shuffle(combos)
+
+    board = []
+    column = []
+    for x in range(width):
+        for y in range(height):
+            # cycle of always adding the first combo in combos[],
+            # which is deleted right after. Causing it to be
+            # a different combo in every cycle  
+            column.append(combos[0])
+            del combos[0]
+        board.append(column)
+    return board
+            
+##### starts running here #####   
 menu()
 
         
