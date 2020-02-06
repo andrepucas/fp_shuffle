@@ -22,7 +22,9 @@ I_SHAPES = (SQUARE, TRIANGLE, CIRCLE)
 
 # general dimensions
 WINDOW = (1280,720)
-CARD_GAP = 10
+GAP = 10            # <- gap inbetween cards
+TOP_MARGIN = 60     # <- this value is fixed
+SIDE_MARGIN = 390   # <- this one varies sligthly, adjusted individually later
 
 # pygame settings
 pygame.init()
@@ -33,19 +35,18 @@ my_font = pygame.freetype.Font("NotoSans-Regular.ttf", 24)
 
 # front page menu
 def menu():
-
-    while (True):
-        
+    while (True): 
         for event in pygame.event.get():
-            
             if (event.type == pygame.QUIT):
                 pygame.quit()
                 exit()
-        
+
         # background
         screen.fill(SCREEN)
+
         # header
         screen.blit(image, (240,20))
+
         # buttons
         button("4x3", 570, 300, 140, 30, "4x3")
         button("4x4", 570, 340, 140, 30, "4x4")
@@ -60,8 +61,6 @@ def menu():
 def button(text, x, y, width, height, action = None):
     mouse = pygame.mouse.get_pos() 
     click = pygame.mouse.get_pressed() 
-    levelSize = ""
-
 
     # when hovered
     if x < mouse[0] < x + width and y < mouse[1] < y + height:
@@ -96,13 +95,15 @@ def button(text, x, y, width, height, action = None):
         pygame.draw.rect(screen, YELLOW, (x, y, width, height), 2)
         my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, YELLOW)
 
-# Levels
+# Levels, Gameplay Loop
 def game_loop(levelSize):
-
-    # playing board dimensions
+    
+    # playing board and cards dimensions
     if (levelSize == '4x3'):
-        BOARD_X = 4 # width
-        BOARD_Y = 3 # height
+        BOARD_X = 4 # board width
+        BOARD_Y = 3 # board height
+        cardWidth = 115     
+        cardHeight = 190
     elif (levelSize == '4x4'):
         BOARD_X = 4 
         BOARD_Y = 4 
@@ -115,23 +116,33 @@ def game_loop(levelSize):
     elif (levelSize == '6x6'):
         BOARD_X = 6 
         BOARD_Y = 6
-
-    # generating board
+    
+    mouse = pygame.mouse.get_pos() 
+    click = pygame.mouse.get_pressed() 
+    
+    # saves the first card selected to be compared later
+    firstCard = None
+    # generates random board
     board = createBoard(BOARD_X, BOARD_Y)
+    # list of combos found, starts empty
+    combosFound = combosFoundResults(False, BOARD_X, BOARD_Y)
 
     while (True):
+        
+        screen.fill(SCREEN)
+        # draws cards in board
+        getBoard(board, combosFound, BOARD_X, BOARD_Y, cardWidth, cardHeight)
 
         for event in pygame.event.get():
-            
             if (event.type == pygame.QUIT):
                 pygame.quit()
                 exit()
         
-        screen.fill(SCREEN)
         button("Exit", 10, 680, 100, 30, "back")
+
         pygame.display.flip()
 
-# creates all the playing cards in the game
+# creates all the playable card combos in the game
 def createBoard(width, height):
     
     # all possible combos with the colors and shapes assigned
@@ -140,7 +151,7 @@ def createBoard(width, height):
         for shape in I_SHAPES:
             combos.append( (shape, color) ) 
     
-    # shuffles all combinations and selects only the ones needed according
+    # shuffles all combinations and selects only the needed pairs according
     # to the size of the level (board dimensions) 
     random.shuffle(combos)
     combosNeeded = int(width * height / 2)
@@ -151,6 +162,7 @@ def createBoard(width, height):
     column = []
     for x in range(width):
         for y in range(height):
+
             # cycle of always adding the first combo in combos[],
             # which is deleted right after. Causing it to be
             # a different combo in every cycle  
@@ -158,7 +170,29 @@ def createBoard(width, height):
             del combos[0]
         board.append(column)
     return board
-            
+
+# draws board with cards
+def getBoard(board, combosFound, width, height, cardWidth, cardHeight):
+    for xCard in range(width):
+        for yCard in range(height):
+            x, y = cardPos(xCard, yCard, cardWidth, cardHeight)
+            # only draws the cards pairs that havent yet been revealed
+            if not combosFound[xCard][yCard]:
+                pygame.draw.rect(screen, CARD, (x, y, cardWidth, cardHeight))
+
+# card position in pixels
+def cardPos(xCard, yCard, cardWidth, cardHeight):
+    x = xCard * (cardWidth + GAP) + SIDE_MARGIN
+    y = yCard * (cardHeight + GAP) + TOP_MARGIN
+    return (x, y)
+
+# list of Bools that stores if a combo has been found
+def combosFoundResults(res, width, height):
+    combosFound = []
+    for i in range(width):
+        combosFound.append([res] * height)
+    return combosFound
+
 ##### starts running here #####   
 menu()
 
