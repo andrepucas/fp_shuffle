@@ -32,12 +32,14 @@ res = WINDOW
 screen = pygame.display.set_mode(res)
 image = pygame.image.load("shuffle.png")
 my_font = pygame.freetype.Font("NotoSans-Regular.ttf", 24)
+FRAMES = pygame.time.Clock()
+FPS = 30
 
 # front page menu
 def menu():
-    while (True): 
+    while True: 
         for event in pygame.event.get():
-            if (event.type == pygame.QUIT):
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
 
@@ -56,6 +58,7 @@ def menu():
         button("Exit", 570, 520, 140, 30, "quit")
        
         pygame.display.flip()
+        
 
 # button function, gets message, position, area, and action
 def button(text, x, y, width, height, action = None):
@@ -95,52 +98,71 @@ def button(text, x, y, width, height, action = None):
         pygame.draw.rect(screen, YELLOW, (x, y, width, height), 2)
         my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, YELLOW)
 
-# Levels, Gameplay Loop
+# Levels, Main Gameplay Loop
 def game_loop(levelSize):
-    
+    mouse = pygame.mouse.get_pos() 
+    click = pygame.mouse.get_pressed() 
+
+    # saves the first card selected to be compared later
+    firstCard = None
+
     # playing board and cards dimensions
-    if (levelSize == '4x3'):
+    if levelSize == '4x3':
         BOARD_X = 4 # board width
         BOARD_Y = 3 # board height
         cardWidth = 115     
         cardHeight = 190
-    elif (levelSize == '4x4'):
+    elif levelSize == '4x4':
         BOARD_X = 4 
-        BOARD_Y = 4 
-    elif (levelSize == '5x4'):
+        BOARD_Y = 4
+        cardWidth = 115 - 0.25 * 125   
+        cardHeight = 190 - 0.25 * 190
+    elif levelSize == '5x4':
         BOARD_X = 5 
         BOARD_Y = 4
-    elif (levelSize == '6x5'):
+    elif levelSize == '6x5':
         BOARD_X = 6 
         BOARD_Y = 5
-    elif (levelSize == '6x6'):
+    elif levelSize == '6x6':
         BOARD_X = 6 
         BOARD_Y = 6
     
-    mouse = pygame.mouse.get_pos() 
-    click = pygame.mouse.get_pressed() 
-    
-    # saves the first card selected to be compared later
-    firstCard = None
     # generates random board
     board = createBoard(BOARD_X, BOARD_Y)
-    # list of combos found, starts empty
     combosFound = combosFoundResults(False, BOARD_X, BOARD_Y)
 
-    while (True):
-        
+    while True: 
         screen.fill(SCREEN)
         # draws cards in board
         getBoard(board, combosFound, BOARD_X, BOARD_Y, cardWidth, cardHeight)
 
         for event in pygame.event.get():
-            if (event.type == pygame.QUIT):
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-        
-        button("Exit", 10, 680, 100, 30, "back")
 
+        # checks if mouse is over a card 
+        xCard, yCard = getCard(mouse[0], mouse[1], BOARD_X, BOARD_Y, cardWidth, 
+        cardHeight)
+        # Is over a card
+        if xCard != None and yCard != None:
+            # checks if it has been found before
+            if not combosFound[xCard][yCard]:
+                hoverCard(xCard, yCard, cardWidth, cardHeight)
+            if not combosFound[xCard][yCard] and click[0] == 1:
+                showCard(board, [(xCard, yCard)], cardWidth, cardHeight)
+                combosFound[xCard][yCard] = True
+                if firstCard == None:
+                    firstCard = (xCard, yCard)
+                
+
+
+        button("Exit", 10, 680, 100, 30, "back")
+        
+        pygame.display.update()
+        FRAMES.tick(FPS)
         pygame.display.flip()
+        
 
 # creates all the playable card combos in the game
 def createBoard(width, height):
@@ -175,13 +197,33 @@ def createBoard(width, height):
 def getBoard(board, combosFound, width, height, cardWidth, cardHeight):
     for xCard in range(width):
         for yCard in range(height):
-            x, y = cardPos(xCard, yCard, cardWidth, cardHeight)
+            x, y = cardPixel(xCard, yCard, cardWidth, cardHeight)
             # only draws the cards pairs that havent yet been revealed
             if not combosFound[xCard][yCard]:
                 pygame.draw.rect(screen, CARD, (x, y, cardWidth, cardHeight))
+            # draws the revealed cards
+            else:
+                shape = board[xCard][yCard][0]
+                color = board[xCard][yCard][1]
+
+                pygame.draw.rect(screen, color, (x, y, cardWidth, cardHeight), 2)
+                drawCombo(shape, color, xCard, yCard, cardWidth, cardHeight)
+
+# checks if mouse is over a card
+def getCard(xMouse, yMouse, width, height, cardWidth, cardHeight):
+    for xCard in range(width):
+        for yCard in range(height):
+            x, y = cardPixel(xCard, yCard, cardWidth, cardHeight)
+            # sets a card hitbox for the hovered card and checks if the mouse
+            # collides with it 
+            card = pygame.Rect(x, y, cardWidth, cardHeight)
+            if card.collidepoint(xMouse, yMouse):
+                return (xCard, yCard)
+    # returns None if the mouser isnt over any card            
+    return (None, None)
 
 # card position in pixels
-def cardPos(xCard, yCard, cardWidth, cardHeight):
+def cardPixel(xCard, yCard, cardWidth, cardHeight):
     x = xCard * (cardWidth + GAP) + SIDE_MARGIN
     y = yCard * (cardHeight + GAP) + TOP_MARGIN
     return (x, y)
@@ -192,6 +234,49 @@ def combosFoundResults(res, width, height):
     for i in range(width):
         combosFound.append([res] * height)
     return combosFound
+
+# draws a highlighted card
+def hoverCard(xCard, yCard, cardWidth, cardHeight):
+    x, y = cardPixel(xCard, yCard, cardWidth, cardHeight)
+    pygame.draw.rect(screen, WHITE, (x, y, cardWidth, cardHeight))
+
+def showCard(board, cards, cardWidth, cardHeight):
+    
+    for card in cards:
+        x, y = cardPixel(card[0], card[1], cardWidth, cardHeight)
+
+        shape = board[card[0]][card[1]][0]
+        color = board[card[0]][card[1]][1]
+
+        pygame.draw.rect(screen, color, (x, y, cardWidth, cardHeight), 2)
+        drawCombo(shape, color, card[0], card[1], cardWidth, cardHeight)
+
+    pygame.display.update()
+    FRAMES.tick(FPS)
+
+
+def drawCombo(shape, color, xCard, yCard, cardWidth, cardHeight):
+    x, y = cardPixel(xCard, yCard, cardWidth, cardHeight)
+
+    xHalf = int(cardWidth * 0.5)
+    yHalf = int(cardHeight * 0.5)
+    xQuarter = int(cardWidth * 0.25)
+    yQuarter = int(cardHeight * 0.25)
+    x03 = int(cardWidth * 0.31)
+    x04 = int(cardWidth * 0.4)
+    y04 = int(cardHeight * 0.38)
+
+    if shape == SQUARE:
+        pygame.draw.rect(screen, color, (x + x03, y + y04, 
+        x04, x04))
+
+    if shape == TRIANGLE:
+        pygame.draw.polygon(screen, color, [(x + xQuarter, y + yQuarter + y04), 
+        (x + xQuarter + xHalf, y + yQuarter + y04), (x + xHalf, y + y04)])
+    
+    if shape == CIRCLE:
+        pygame.draw.circle(screen, color, (x + xHalf, y + yHalf), xQuarter)
+
 
 ##### starts running here #####   
 menu()
