@@ -1,3 +1,7 @@
+# Projeto Recurso para Fundamentos de Programação
+# 1º Semestre 2019/2020
+# André Santos 21901767
+
 import pygame
 import pygame.freetype
 import random
@@ -41,30 +45,33 @@ FPS = 60
 # front page menu
 def menu():
     while True:
+        click = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
+            elif event.type == pygame.MOUSEBUTTONUP:
+                mouse = pygame.mouse.get_pos()
+                click = True
 
         # background
         screen.fill(SCREEN)
         # header
         screen.blit(image, (240,20))
         # buttons
-        button("4x3", 570, 300, 140, 30, "4x3")
-        button("4x4", 570, 340, 140, 30, "4x4")
-        button("5x4", 570, 380, 140, 30, "5x4")
-        button("6x5", 570, 420, 140, 30, "6x5")
-        button("6x6", 570, 460, 140, 30, "6x6")
-        button("Exit", 570, 520, 140, 30, "quit")
+        button("4x3", 570, 300, 140, 30, click, "4x3")
+        button("4x4", 570, 340, 140, 30, click, "4x4")
+        button("5x4", 570, 380, 140, 30, click, "5x4")
+        button("6x5", 570, 420, 140, 30, click, "6x5")
+        button("6x6", 570, 460, 140, 30, click, "6x6")
+        button("Exit", 570, 520, 140, 30, click, "quit")
 
         pygame.display.update()
         FRAMES.tick(FPS) 
 
 # button function, gets message, position, area, and action
-def button(text, x, y, width, height, action = None):
+def button(text, x, y, width, height, click, action = None):
     mouse = pygame.mouse.get_pos() 
-    click = pygame.mouse.get_pressed()
     
     # when hovered
     if x < mouse[0] < x + width and y < mouse[1] < y + height:
@@ -72,7 +79,7 @@ def button(text, x, y, width, height, action = None):
         my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, WHITE)
 
         # if clicked
-        if click[0] == 1 and action != None:
+        if click and action != None:
             if action == "quit":
                 pygame.quit()
                 exit()
@@ -171,7 +178,7 @@ def game_loop(levelSize):
         my_font.render_to(screen, (20, 20), TEXT_SCORE, YELLOW)
         my_font.render_to(screen, (100, 20), score, YELLOW)
        
-        button("Exit", 10, 680, 100, 30, "back")    
+        button("Exit", 10, 680, 100, 30, click, "back")    
 
         # checks mouse position over cards 
         xCard, yCard = getCard(mouse[0], mouse[1], BOARD_X, BOARD_Y, cardWidth, 
@@ -408,7 +415,7 @@ def victoryScreen(score):
         score = str(score)   
         my_font.render_to(screen, (20, 20), TEXT_SCORE, YELLOW)
         my_font.render_to(screen, (100, 20), score, YELLOW)
-        button("Exit", 10, 680, 100, 30, "back")
+        button("Exit", 10, 680, 100, 30, click, "back")
         
         pygame.display.update()
         FRAMES.tick(FPS) 
