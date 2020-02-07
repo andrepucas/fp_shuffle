@@ -14,7 +14,7 @@ Types if import:
 IMPORTANT: Do NOT post this list to the issue-tracker. Use it as a basis for
            yourself tracking down the missing module. Thanks!
 
-missing module named org - imported by pickle (optional)
+missing module named 'org.python' - imported by pickle (optional)
 missing module named _subprocess - imported by subprocess (conditional)
 missing module named msvcrt - imported by subprocess (conditional)
 missing module named riscosenviron - imported by os (conditional, optional)
@@ -24,6 +24,6 @@ missing module named ce - imported by os (conditional, optional)
 missing module named _emx_link - imported by os (conditional)
 missing module named os2 - imported by os (conditional, optional)
 missing module named nt - imported by os (conditional, optional), ntpath (optional)
-missing module named 'org.python' - imported by copy (optional)
+missing module named org - imported by copy (optional)
 missing module named 'pygame.freetype' - imported by /home/andre_pucas/Dropbox/Uni/Videojogos/FP/Python/Shuffle/Shuffle_but_worse.py (top-level)
 missing module named pygame - imported by /home/andre_pucas/Dropbox/Uni/Videojogos/FP/Python/Shuffle/Shuffle_but_worse.py (top-level)
