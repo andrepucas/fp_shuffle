@@ -20,10 +20,13 @@ TRIANGLE = 'triangle'
 CIRCLE = 'circle'
 I_SHAPES = (SQUARE, TRIANGLE, CIRCLE)
 
-# fixed dimensions
+# fixed variables
 WINDOW = (1280,720)
+CENTER_X = 1280 / 2
+CENTER_Y = 720 / 2
 GAP = 10     # <- gap inbetween cards
 TOP = 60     # <- this margin value is fixed, the side margin's one isn't 
+TEXT_WIN = "Congratulations!"
 
 # pygame settings
 pygame.init()
@@ -44,10 +47,8 @@ def menu():
 
         # background
         screen.fill(SCREEN)
-
         # header
         screen.blit(image, (240,20))
-
         # buttons
         button("4x3", 570, 300, 140, 30, "4x3")
         button("4x4", 570, 340, 140, 30, "4x4")
@@ -55,10 +56,9 @@ def menu():
         button("6x5", 570, 420, 140, 30, "6x5")
         button("6x6", 570, 460, 140, 30, "6x6")
         button("Exit", 570, 520, 140, 30, "quit")
-       
+
         pygame.display.update()
-        FRAMES.tick(FPS)
-        
+        FRAMES.tick(FPS) 
 
 # button function, gets message, position, area, and action
 def button(text, x, y, width, height, action = None):
@@ -135,42 +135,97 @@ def game_loop(levelSize):
 
     # saves the first card selected to be compared later
     firstCard = None
-
     # generates random board
     board = createBoard(BOARD_X, BOARD_Y)
+    # saves data from all found combos
     combosFound = combosFoundResults(False, BOARD_X, BOARD_Y)
+    # saves data from picked combos
+    combosPicked = combosPickedResults(False, BOARD_X, BOARD_Y)
 
     while True: 
-        mouse = pygame.mouse.get_pos() 
         click = False
-        screen.fill(SCREEN)
-        # draws cards in board
-        getBoard(board, combosFound, BOARD_X, BOARD_Y, cardWidth, cardHeight, SIDE)
+        mouse = pygame.mouse.get_pos() 
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            if event.type == pygame.MOUSEBUTTONUP:
+            # clicks are only accepted when the mouse is released as a way to 
+            # prevent clicking spam
+            elif event.type == pygame.MOUSEBUTTONUP:
                 mouse = pygame.mouse.get_pos()
                 click = True
 
-        # checks if mouse is over a card 
+        screen.fill(SCREEN)
+        # draws cards in board
+        getBoard(board, combosPicked, combosFound, BOARD_X, BOARD_Y, cardWidth, 
+        cardHeight, SIDE)        
+
+        # checks mouse position over cards 
         xCard, yCard = getCard(mouse[0], mouse[1], BOARD_X, BOARD_Y, cardWidth, 
         cardHeight, SIDE)
-        # Is over a card
+        # if mouse is over a card
         if xCard != None and yCard != None:
-            # checks if it has been found before
-            if not combosFound[xCard][yCard]:
-                hoverCard(xCard, yCard, cardWidth, cardHeight, SIDE)
-            if not combosFound[xCard][yCard] and click == True:
-                showCard(board, [(xCard, yCard)], cardWidth, cardHeight, SIDE)
-                combosFound[xCard][yCard] = True
+            
+            hoverCard(xCard, yCard, cardWidth, cardHeight, SIDE, combosPicked,
+            combosFound)
+    
+            # clicking on a card
+            if not combosPicked[xCard][yCard] and click == True:
+                showCombo(board, [(xCard, yCard)], cardWidth, cardHeight, SIDE)
+                combosPicked[xCard][yCard] = True
+
+                # if this was the first card clicked
                 if firstCard == None:
-                    firstCard = (xCard, yCard)
+                    firstCard = (xCard, yCard)      
+                # second card clicked
+                else:
+                    # shape and color of first card
+                    shape1 = board[firstCard[0]][firstCard[1]][0]
+                    color1 = board[firstCard[0]][firstCard[1]][1]
+                    # shape and color of second card
+                    shape2 = board[xCard][yCard][0]
+                    color2 = board[xCard][yCard][1]
+
+                    # combos dont match
+                    if shape1 != shape2 or color1 != color2:
+
+                        pygame.time.wait(1000)
+                        
+                        combosPicked[firstCard[0]][firstCard[1]] = False
+                        combosPicked[xCard][yCard] = False
+
+                        combosFound[firstCard[0]][firstCard[1]] = False
+                        combosFound[xCard][yCard] = False
+
+                        # re-cover cards
+                        hideCombo(board, [(firstCard[0], firstCard[1]), 
+                        (xCard, yCard)], cardWidth, cardHeight, SIDE)  
+
+                    # combos match
+                    elif shape1 == shape2 and color1 == color2:
+                        
+                        pygame.time.wait(1000)
+
+                        combosPicked[firstCard[0]][firstCard[1]] = False
+                        combosPicked[xCard][yCard] = False
+
+                        combosFound[firstCard[0]][firstCard[1]] = True
+                        combosFound[xCard][yCard] = True
+
+                        # checks if player has found all combos - won
+                        # returns True if confirmed
+                        if gotEmAll(combosFound):
+                            # updates the board 
+                            getBoard(board, combosPicked, combosFound, 
+                            BOARD_X, BOARD_Y, cardWidth, cardHeight, SIDE)
+
+                            victoryScreen()
                 
+                    firstCard = None
+
         button("Exit", 10, 680, 100, 30, "back")
-        
+
         pygame.display.update()
         FRAMES.tick(FPS)
        
@@ -194,7 +249,6 @@ def createBoard(width, height):
     for x in range(width):
         column = []
         for y in range(height):
-
             # cycle that always adds the first combo in combos[],
             # which is deleted right after, causing it to be
             # a different combo in every cycle  
@@ -204,20 +258,24 @@ def createBoard(width, height):
     return board
 
 # draws board with cards
-def getBoard(board, combosFound, width, height, cardWidth, cardHeight, SIDE):
+def getBoard(board, combosPicked, combosFound, width, height, cardWidth, 
+cardHeight, SIDE):
     for xCard in range(width):
         for yCard in range(height):
             x, y = cardPixel(xCard, yCard, cardWidth, cardHeight, SIDE)
             # only draws the cards pairs that havent yet been revealed
-            if not combosFound[xCard][yCard]:
+            if not combosPicked[xCard][yCard] and not combosFound[xCard][yCard]:
                 pygame.draw.rect(screen, CARD, (x, y, cardWidth, cardHeight))
-            # draws the revealed cards
-            else:
+            # draws the picked combos
+            if combosPicked[xCard][yCard]:
                 shape = board[xCard][yCard][0]
                 color = board[xCard][yCard][1]
 
                 pygame.draw.rect(screen, color, (x, y, cardWidth, cardHeight), 2)
                 drawCombo(shape, color, xCard, yCard, cardWidth, cardHeight, SIDE)
+            # "removes" found combos from the board
+            if combosFound[xCard][yCard] and not combosPicked[xCard][yCard]:
+                pygame.draw.rect(screen, SCREEN, (x, y, cardWidth, cardHeight))
 
 # checks if mouse is over a card
 def getCard(xMouse, yMouse, width, height, cardWidth, cardHeight, SIDE):
@@ -245,12 +303,24 @@ def combosFoundResults(res, width, height):
         combosFound.append([res] * height)
     return combosFound
 
-# draws a highlighted card
-def hoverCard(xCard, yCard, cardWidth, cardHeight, SIDE):
-    x, y = cardPixel(xCard, yCard, cardWidth, cardHeight, SIDE)
-    pygame.draw.rect(screen, WHITE, (x, y, cardWidth, cardHeight))
+# list of Bools that stores if a combo has been picked
+def combosPickedResults(res, width, height):
+    combosPicked = []
+    for i in range(width):
+        combosPicked.append([res] * height)
+    return combosPicked
 
-def showCard(board, cards, cardWidth, cardHeight, SIDE):
+# draws a highlighted card, doesnt hover "hidden" cards
+def hoverCard(xCard, yCard, cardWidth, cardHeight, SIDE, combosPicked, combosFound):
+    x, y = cardPixel(xCard, yCard, cardWidth, cardHeight, SIDE)
+    if combosPicked[xCard][yCard]:
+        pygame.draw.rect(screen, WHITE, (x, y, cardWidth, cardHeight), 2)
+    if not combosPicked[xCard][yCard] and not combosFound[xCard][yCard]:
+        pygame.draw.rect(screen, WHITE, (x, y, cardWidth, cardHeight))
+
+
+# when a card is pressed, a combo is revealed 
+def showCombo(board, cards, cardWidth, cardHeight, SIDE):
     
     for card in cards:
         x, y = cardPixel(card[0], card[1], cardWidth, cardHeight, SIDE)
@@ -258,16 +328,56 @@ def showCard(board, cards, cardWidth, cardHeight, SIDE):
         shape = board[card[0]][card[1]][0]
         color = board[card[0]][card[1]][1]
 
+        # outline + shape
         pygame.draw.rect(screen, color, (x, y, cardWidth, cardHeight), 2)
         drawCombo(shape, color, card[0], card[1], cardWidth, cardHeight, SIDE)
 
     pygame.display.update()
     FRAMES.tick(FPS)
 
+# hides 2 combos if they dont match
+def hideCombo(board, cards, cardWidth, cardHeight, SIDE):
 
+    for card in cards:
+        x, y = cardPixel(card[0], card[1], cardWidth, cardHeight, SIDE)
+        # re-cover the card
+        pygame.draw.rect(screen, CARD, (x, y, cardWidth, cardHeight))
+
+    pygame.display.update()
+    FRAMES.tick(FPS)
+
+# Winning function, returns False if there are still combos left to be found
+def gotEmAll(combosFound):
+    for combo in combosFound:
+        if False in combo:
+            return False     
+    return True
+
+# player is redirected here when he wins the game
+def victoryScreen():
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+        screen.fill(SCREEN)
+        # congratulations message
+        my_font.render_to(screen, (CENTER_X - 94, CENTER_Y - 10), 
+        TEXT_WIN, CYAN)
+        
+        button("Exit", 10, 680, 100, 30, "back")
+        
+        pygame.display.update()
+        FRAMES.tick(FPS) 
+
+                
+
+# drawings of the shapes
 def drawCombo(shape, color, xCard, yCard, cardWidth, cardHeight, SIDE):
     x, y = cardPixel(xCard, yCard, cardWidth, cardHeight, SIDE)
 
+    # usefull proportions
     xHalf = int(cardWidth * 0.5)
     yHalf = int(cardHeight * 0.5)
     xQuarter = int(cardWidth * 0.25)
@@ -286,7 +396,6 @@ def drawCombo(shape, color, xCard, yCard, cardWidth, cardHeight, SIDE):
     
     if shape == CIRCLE:
         pygame.draw.circle(screen, color, (x + xHalf, y + yHalf), xQuarter)
-
 
 ##### starts running here #####   
 menu()
