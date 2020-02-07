@@ -177,7 +177,7 @@ def game_loop(levelSize):
         score = str(score)   
         my_font.render_to(screen, (20, 20), TEXT_SCORE, YELLOW)
         my_font.render_to(screen, (100, 20), score, YELLOW)
-       
+
         button("Exit", 10, 680, 100, 30, click, "back")    
 
         # checks mouse position over cards 
@@ -209,24 +209,36 @@ def game_loop(levelSize):
                     # combos dont match
                     if shape1 != shape2 or color1 != color2:
                         
+                        # <bug fix> need board and update so that the second 
+                        # card picked isnt shown with an highlighted interior
+                        getBoard(board, combosPicked, combosFound, 
+                        BOARD_X, BOARD_Y, cardWidth, cardHeight, SIDE)
+                        pygame.display.update()
+
                         # sets combosPicked to False
                         combosPicked[firstCard[0]][firstCard[1]] = False
                         combosPicked[xCard][yCard] = False
                         # combosFound remains False
 
-                        # wait 1 sec, updates score 
+                        # wait 1 sec, updates score
                         pygame.time.wait(1000)                    
                         score, scorePenalty = updateScore(scorePenalty, score, 
                         xCard, yCard, combosFound)
-                    
+
                         # re-cover cards
                         hideCombo(board, [(firstCard[0], firstCard[1]), 
-                        (xCard, yCard)], cardWidth, cardHeight, SIDE)  
+                        (xCard, yCard)], cardWidth, cardHeight, SIDE) 
 
                     # combos match
                     elif shape1 == shape2 and color1 == color2:
+                        
+                        # <bug fix> need board and update so that the second 
+                        # card picked isnt shown with an highlighted interior 
+                        getBoard(board, combosPicked, combosFound, 
+                        BOARD_X, BOARD_Y, cardWidth, cardHeight, SIDE)
+                        pygame.display.update()
 
-                        # sets combosPicked to False to start another move
+                        # sets combosPicked to False
                         combosPicked[firstCard[0]][firstCard[1]] = False
                         combosPicked[xCard][yCard] = False
 
@@ -234,7 +246,7 @@ def game_loop(levelSize):
                         combosFound[firstCard[0]][firstCard[1]] = True
                         combosFound[xCard][yCard] = True
 
-                        # waits a second and set the score
+                        # waits a second and sets the score
                         pygame.time.wait(1000)
                         score, scorePenalty = updateScore(scorePenalty, score, 
                         xCard, yCard, combosFound)
@@ -293,6 +305,9 @@ cardHeight, SIDE):
                 shape = board[xCard][yCard][0]
                 color = board[xCard][yCard][1]
 
+                # this first line is part of <bug fix>
+                # (guarantees that the combo doesnt have the card glow)
+                pygame.draw.rect(screen, SCREEN, (x, y, cardWidth, cardHeight))
                 pygame.draw.rect(screen, color, (x, y, cardWidth, cardHeight), 2)
                 drawCombo(shape, color, xCard, yCard, cardWidth, cardHeight, SIDE)
             # "removes" found combos from the board
@@ -339,7 +354,6 @@ def hoverCard(xCard, yCard, cardWidth, cardHeight, SIDE, combosPicked, combosFou
         pygame.draw.rect(screen, WHITE, (x, y, cardWidth, cardHeight), 2)
     if not combosPicked[xCard][yCard] and not combosFound[xCard][yCard]:
         pygame.draw.rect(screen, WHITE, (x, y, cardWidth, cardHeight))
-
 
 # when a card is pressed, a combo is revealed 
 def showCombo(board, cards, cardWidth, cardHeight, SIDE):
@@ -402,10 +416,14 @@ def gotEmAll(combosFound):
 # player is redirected here when he wins the game
 def victoryScreen(score):
     while True:
+        click = False  
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
+            elif event.type == pygame.MOUSEBUTTONUP:
+                mouse = pygame.mouse.get_pos()
+                click = True
 
         screen.fill(SCREEN)
         # congratulations message
