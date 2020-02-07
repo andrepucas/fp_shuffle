@@ -27,6 +27,7 @@ CENTER_Y = 720 / 2
 GAP = 10     # <- gap inbetween cards
 TOP = 60     # <- this margin value is fixed, the side margin's one isn't 
 TEXT_WIN = "Congratulations!"
+TEXT_SCORE = "Score:"
 
 # pygame settings
 pygame.init()
@@ -98,7 +99,7 @@ def button(text, x, y, width, height, action = None):
         pygame.draw.rect(screen, YELLOW, (x, y, width, height), 2)
         my_font.render_to(screen, (x + (width/2.8), y + (height/5)), text, YELLOW)
 
-# Levels, Main Gameplay Loop
+# levels, Main Gameplay Loop
 def game_loop(levelSize):
 
     # playing board and cards dimensions
@@ -133,13 +134,18 @@ def game_loop(levelSize):
         cardHeight = 90
         SIDE = 448
 
-    # saves the first card selected to be compared later
+    # saves the first card selected to be compared
     firstCard = None
+
+    # score info
+    scorePenalty = 0
+    score = 0         
+
     # generates random board
     board = createBoard(BOARD_X, BOARD_Y)
-    # saves data from all found combos
+
+    # saved data from all combos Found and Picked
     combosFound = combosFoundResults(False, BOARD_X, BOARD_Y)
-    # saves data from picked combos
     combosPicked = combosPickedResults(False, BOARD_X, BOARD_Y)
 
     while True: 
@@ -159,7 +165,13 @@ def game_loop(levelSize):
         screen.fill(SCREEN)
         # draws cards in board
         getBoard(board, combosPicked, combosFound, BOARD_X, BOARD_Y, cardWidth, 
-        cardHeight, SIDE)        
+        cardHeight, SIDE)
+        # handles score
+        score = str(score)   
+        my_font.render_to(screen, (20, 20), TEXT_SCORE, YELLOW)
+        my_font.render_to(screen, (100, 20), score, YELLOW)
+       
+        button("Exit", 10, 680, 100, 30, "back")    
 
         # checks mouse position over cards 
         xCard, yCard = getCard(mouse[0], mouse[1], BOARD_X, BOARD_Y, cardWidth, 
@@ -189,49 +201,52 @@ def game_loop(levelSize):
 
                     # combos dont match
                     if shape1 != shape2 or color1 != color2:
-
-                        pygame.time.wait(1000)
                         
+                        # sets combosPicked to False
                         combosPicked[firstCard[0]][firstCard[1]] = False
                         combosPicked[xCard][yCard] = False
+                        # combosFound remains False
 
-                        combosFound[firstCard[0]][firstCard[1]] = False
-                        combosFound[xCard][yCard] = False
-
+                        # wait 1 sec, updates score 
+                        pygame.time.wait(1000)                    
+                        score, scorePenalty = updateScore(scorePenalty, score, 
+                        xCard, yCard, combosFound)
+                    
                         # re-cover cards
                         hideCombo(board, [(firstCard[0], firstCard[1]), 
                         (xCard, yCard)], cardWidth, cardHeight, SIDE)  
 
                     # combos match
                     elif shape1 == shape2 and color1 == color2:
-                        
-                        pygame.time.wait(1000)
 
+                        # sets combosPicked to False to start another move
                         combosPicked[firstCard[0]][firstCard[1]] = False
                         combosPicked[xCard][yCard] = False
 
+                        # sets combosFound to True
                         combosFound[firstCard[0]][firstCard[1]] = True
                         combosFound[xCard][yCard] = True
 
-                        # checks if player has found all combos - won
-                        # returns True if confirmed
+                        # waits a second and set the score
+                        pygame.time.wait(1000)
+                        score, scorePenalty = updateScore(scorePenalty, score, 
+                        xCard, yCard, combosFound)
+                        
+                        # returns True if player has all combosFound - Won game
                         if gotEmAll(combosFound):
-                            # updates the board 
+                            # updates the board to show all cards removed
                             getBoard(board, combosPicked, combosFound, 
                             BOARD_X, BOARD_Y, cardWidth, cardHeight, SIDE)
 
-                            victoryScreen()
+                            victoryScreen(score)
                 
                     firstCard = None
-
-        button("Exit", 10, 680, 100, 30, "back")
 
         pygame.display.update()
         FRAMES.tick(FPS)
        
 # creates all the playable card combos in the game
 def createBoard(width, height):
-    
     # all possible combos with the colors and shapes assigned
     combos = []
     for color in I_COLORS:
@@ -239,7 +254,7 @@ def createBoard(width, height):
             combos.append((shape, color)) 
     
     # shuffles all combinations and selects only the needed pairs according
-    # to the size of the level (board dimensions) 
+    # to the board dimensions
     random.shuffle(combos)
     combosNeeded = int(width * height / 2)
     combos = combos[:combosNeeded] * 2
@@ -251,7 +266,7 @@ def createBoard(width, height):
         for y in range(height):
             # cycle that always adds the first combo in combos[],
             # which is deleted right after, causing it to be
-            # a different combo in every cycle  
+            # a different combo in each cycle  
             column.append(combos[0])
             del combos[0]
         board.append(column)
@@ -321,7 +336,6 @@ def hoverCard(xCard, yCard, cardWidth, cardHeight, SIDE, combosPicked, combosFou
 
 # when a card is pressed, a combo is revealed 
 def showCombo(board, cards, cardWidth, cardHeight, SIDE):
-    
     for card in cards:
         x, y = cardPixel(card[0], card[1], cardWidth, cardHeight, SIDE)
 
@@ -337,7 +351,6 @@ def showCombo(board, cards, cardWidth, cardHeight, SIDE):
 
 # hides 2 combos if they dont match
 def hideCombo(board, cards, cardWidth, cardHeight, SIDE):
-
     for card in cards:
         x, y = cardPixel(card[0], card[1], cardWidth, cardHeight, SIDE)
         # re-cover the card
@@ -345,6 +358,32 @@ def hideCombo(board, cards, cardWidth, cardHeight, SIDE):
 
     pygame.display.update()
     FRAMES.tick(FPS)
+
+# updates score value
+# how it works:                                                                     
+#   -> for every consecutive combo that the player misses, he will be punished        
+# harder with each play. Loses 0 points the first time he misses, then 20, 40, 60...
+#   -> if the player gets a combo right, then he gets 100 points and the punishment   
+# is reseted to its original point: 0, so that next time he misses the 0, 20, 40... 
+# chain restarts                                                                    
+#   -> the score can never be negative                                               
+def updateScore(scorePenalty, score, xCard, yCard, combosFound):
+    score = int(score)
+    # combos match
+    if combosFound[xCard][yCard]:
+        score = score + 100
+        scorePenalty = 0
+        return score, scorePenalty
+    # combos dont match
+    else:
+        score = score - scorePenalty
+        scorePenalty = scorePenalty + 20
+        # score value cant be < 0
+        if score <= 0:
+            score = 0
+            scorePenalty = scorePenalty + 20
+            return score, scorePenalty
+        return score, scorePenalty
 
 # Winning function, returns False if there are still combos left to be found
 def gotEmAll(combosFound):
@@ -354,7 +393,7 @@ def gotEmAll(combosFound):
     return True
 
 # player is redirected here when he wins the game
-def victoryScreen():
+def victoryScreen(score):
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -366,6 +405,9 @@ def victoryScreen():
         my_font.render_to(screen, (CENTER_X - 94, CENTER_Y - 10), 
         TEXT_WIN, CYAN)
         
+        score = str(score)   
+        my_font.render_to(screen, (20, 20), TEXT_SCORE, YELLOW)
+        my_font.render_to(screen, (100, 20), score, YELLOW)
         button("Exit", 10, 680, 100, 30, "back")
         
         pygame.display.update()
@@ -399,5 +441,3 @@ def drawCombo(shape, color, xCard, yCard, cardWidth, cardHeight, SIDE):
 
 ##### starts running here #####   
 menu()
-
-        
